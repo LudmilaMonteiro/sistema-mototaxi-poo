@@ -1,4 +1,3 @@
-import java.nio.channels.IllegalSelectorException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -31,17 +30,17 @@ public abstract class Usuario {
 
     public static void desativarUsuario(Usuario usuario) {
         if (usuario == null) {
-            throw new IllegalArgumentException("Usuario inválido.");
+            throw new IllegalArgumentException("Usuario invalido.");
         }
 
-        String sql = "UPDATE usuario SET ativo = FALSE WHERE cpf = ? AND ativo = TRUE";
+        String sql = "UPDATE usuarios SET ativo = FALSE WHERE cpf = ? AND ativo = TRUE";
 
         try (Connection conexao = ConexaoBanco.conectar(); PreparedStatement comando = conexao.prepareStatement(sql)) {
             comando.setString(1, usuario.cpf);
 
-            int linhasAlteradas = comando.executeUpdate();
-
-            if (linhasAlteradas == 0) {
+            int linhas = comando.executeUpdate();
+            
+            if (linhas == 0) {
                 throw new IllegalStateException("Usuario nao encontrado ou ja desativado.");
             }
 
@@ -124,22 +123,19 @@ public abstract class Usuario {
 
     public static void deletarUsuario(Usuario usuario) {
         if (usuario == null) {
-            throw new IllegalArgumentException("Usuario invalido");
+            throw new IllegalArgumentException("Usuario invalido.");
         }
 
-        String buscarUsuario = "SELECT id_usuario, tipo_usuario FROM usuarios WHERE cpf = ? FOR UPDATE";
-        String verificarCorrida = "SELECT EXISTS (SELECT 1 FROM corridas WHERE id_cliente = ? OR id_mototaxista = ?)";
-        String verificarPontos = "SELECT EXISTS (SELECT 1 FROM pontos WHERE id_administrador = ?)";
-        String excluirAssociacoes = "DELETE FROM ponto_mototaxistas WHERE id_mototaxista = ?";
+        String buscar = "SELECT id_usuario, tipo_usuario FROM usuarios WHERE cpf = ? FOR UPDATE";
 
         try (Connection conexao = ConexaoBanco.conectar()) {
             conexao.setAutoCommit(false);
 
             try {
-                int idUsuario;
-                String tipoUsuario;
+                int id;
+                String tipo;
 
-                try (PreparedStatement comando = conexao.prepareStatement(buscarUsuario)) {
+                try (PreparedStatement comando = conexao.prepareStatement(buscar)) {
                     comando.setString(1, usuario.cpf);
 
                     try (ResultSet resultado = comando.executeQuery()) {
@@ -147,64 +143,44 @@ public abstract class Usuario {
                             throw new IllegalStateException("Usuario nao encontrado.");
                         }
 
-                        idUsuario = resultado.getInt("id_usuario");
-                        tipoUsuario = resultado.getString("tipo_usuario");
+                        id = resultado.getInt("id_usuario");
+                        tipo = resultado.getString("tipo_usuario");
                     }
                 }
 
-                try (PreparedStatement comando = conexao.prepareStatement(verificarCorrida)) {
-                    comando.setInt(1, idUsuario);
-                    comando.setInt(2, idUsuario);
-
-                    try (ResultSet resultado = comando.executeQuery()) {
-                        resultado.next();
-
-                        if (resultado.getBoolean(1)) {
-                            throw new IllegalStateException("Usuario possui historico de corridas e nao pode ser excluido");
-                        }
-                    }
+                if (!tipo.equals("CLIENTE") && !tipo.equals("MOTOTAXI")) {
+                    throw new IllegalStateException("Tipo de usuario invalido.");
                 }
 
-                if ("MOTOTAXI".equals(tipoUsuario)) {
-                    try (PreparedStatement comando = conexao.prepareStatement(verificarPontos)) {
-                        comando.setInt(1, idUsuario);
-
-                        try (ResultSet resultado = comando.executeQuery()) {
-                            resultado.next();
-
-                            if (resultado.getBoolean(1)) {
-                                throw new IllegalStateException("Moto-taxista administra um ponto e nao pode ser excluido");
-                            }
-                        }
-                    }
-
-                    try (PreparedStatement comando = conexao.prepareStatement(excluirAssociacoes)) {
-                        comando.setInt(1, idUsuario);
+                if (tipo.equals("MOTOTAXI")) {
+                    try (PreparedStatement comando = conexao.prepareStatement( "DELETE FROM ponto_mototaxistas WHERE id_mototaxista = ?")) {
+                        comando.setInt(1, id);
                         comando.executeUpdate();
                     }
                 }
 
-                String tabela = "CLIENTE".equals(tipoUsuario) ? "clientes" : "mototaxistas";
-                String excluirSubclasse = "DELETE FROM " + tabela + " WHERE id_usuario = ?";
+                String tabela = tipo.equals("CLIENTE") ? "clientes" : "mototaxistas";
 
-                try (PreparedStatement comando = conexao.prepareStatement(excluirSubclasse)) {
-                    comando.setInt(1, idUsuario);
+                try (PreparedStatement comando = conexao.prepareStatement( "DELETE FROM " + tabela + " WHERE id_usuario = ?")) {
+                    comando.setInt(1, id);
                     comando.executeUpdate();
                 }
 
-                String excluirUsuario = "DELETE FROM usuarios WHERE id_usuario = ?";
-
-                try (PreparedStatement comando = conexao.prepareStatement(excluirUsuario)) {
-                    comando.setInt(1, idUsuario);
+                try (PreparedStatement comando = conexao.prepareStatement("DELETE FROM usuarios WHERE id_usuario = ?")) {
+                    comando.setInt(1, id);
                     comando.executeUpdate();
                 }
 
                 conexao.commit();
-            } catch (Exception erro) {
+            } catch (SQLException | RuntimeException erro) {
                 conexao.rollback();
                 throw erro;
             }
         } catch (SQLException erro) {
+            if ("23503".equals(erro.getSQLState())) {
+                throw new IllegalStateException("Usuario possui corridas ou administra um ponto e nao pode ser excluido.", erro);
+            }
+
             throw new IllegalStateException("Erro ao excluir usuario.", erro);
         }
     }
