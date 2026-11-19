@@ -28,6 +28,17 @@ public abstract class Usuario {
         System.out.println("Status: " + (ativo ? "Ativo" : "Inativo"));
     }
 
+    protected void atualizarDados(String nome, String cpf, String login, String senha) {
+        this.nome = nome;
+        this.cpf = cpf;
+        this.login = login;
+        this.senha = senha;
+    }
+
+    protected  String getLogin() {
+        return login;
+    }
+
     public static void desativarUsuario(Usuario usuario) {
         if (usuario == null) {
             throw new IllegalArgumentException("Usuario invalido.");

@@ -24,6 +24,7 @@
 
     <build>
         <sourceDirectory>src</sourceDirectory>
+        <testSourceDirectory>Testes</testSourceDirectory>
     </build>
 
 </project>
