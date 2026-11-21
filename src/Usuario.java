@@ -195,4 +195,8 @@ public abstract class Usuario {
             throw new IllegalStateException("Erro ao excluir usuario.", erro);
         }
     }
+
+    protected void definirAtivo(boolean ativo) {
+        this.ativo = ativo;
+    }
 } 
