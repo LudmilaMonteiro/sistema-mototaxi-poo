@@ -90,7 +90,11 @@ public abstract class Usuario {
             usuario.login = login;
             usuario.senha = senha;
         } catch (SQLException erro) {
-            throw new IllegalStateException("Erro ao editar usuario.", erro);
+            if ("23505".equals(erro.getSQLState())) {
+                throw new IllegalStateException("CPF ou login ja cadastrado.", erro);
+            }
+
+            throw new IllegalStateException("Erro ao editar usuario", erro);
         }
     }
 
@@ -116,18 +120,8 @@ public abstract class Usuario {
     public static List<Usuario> listarUsuarios() {
         List<Usuario> usuarios = new ArrayList<>();
 
-        String sql = "SELECT id_usuario, nome, cpf, login, senha, ativo, tipo_usuario FROM usuarios ORDER BY nome";
-
-        try (Connection conexao = ConexaoBanco.conectar(); PreparedStatement comando = conexao.prepareStatement(sql); ResultSet resultado = comando.executeQuery()) {
-            while (resultado.next()) {
-                String nome = resultado.getString("nome");
-                String cpf = resultado.getString("cpf");
-                String login = resultado.getString("login");
-                String tipoUsuario = resultado.getString("tipo_usuario");
-            }
-        } catch (SQLException erro) {
-            throw new IllegalStateException("Erro ao listar usuarios.", erro);
-        }
+        usuarios.addAll(Cliente.listarClientes());
+        usuarios.addAll(MotoTaxi.listarMotoTaxis());
 
         return usuarios;
     }
