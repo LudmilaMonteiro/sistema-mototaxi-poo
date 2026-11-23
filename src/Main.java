@@ -526,7 +526,28 @@ public class Main {
     }
 
     private static Zona selecionarZona() {
+      private static Zona selecionarZona() {
+        List<Zona> zonas = Zona.listarZonas();
 
+        if (zonas.isEmpty()) {
+            System.out.println("Nenhuma zona cadastrada.");
+            return null;
+        }
+
+        for (int i = 0; i < zonas.size(); i++) {
+            System.out.println("\n" + (i + 1));
+            zonas.get(i).verZona();
+        }
+
+        int escolha = lerInteiro("Numero da zona (0 cancela): ");
+
+        if (escolha < 1 || escolha > zonas.size()) {
+            System.out.println("Selecao cancelada.");
+            return null;
+        }
+
+        return zonas.get(escolha - 1);
+      }     
     }
 
     private static Ponto selecionarPonto() {
