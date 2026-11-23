@@ -526,7 +526,6 @@ public class Main {
     }
 
     private static Zona selecionarZona() {
-      private static Zona selecionarZona() {
         List<Zona> zonas = Zona.listarZonas();
 
         if (zonas.isEmpty()) {
