@@ -37,6 +37,7 @@ public class Main {
                 }
             } catch (Exception erro) {
                 System.out.println("Erro: " + erro.getMessage());
+                erro.printStackTrace();
             }
         } while (opcao != 0);
 
@@ -448,7 +449,7 @@ public class Main {
 
         corrida.finalizarCorrida();
 
-        System.out.println("\nCorrida finalizada com sucesso!")
+        System.out.println("\nCorrida finalizada com sucesso!");
         corrida.verCorrida();
     }
 
@@ -546,10 +547,30 @@ public class Main {
         }
 
         return zonas.get(escolha - 1);
-      }     
+          
     }
 
     private static Ponto selecionarPonto() {
+        List<Ponto> pontos = Ponto.listarPontos();
 
+        if (pontos.isEmpty()) {
+            System.out.println("Nenhum ponto cadastrado");
+            return null;
+        }
+
+        for (int i = 0; i < pontos.size(); i++) {
+            System.out.println("\n" + (i + 1));
+            pontos.get(i).verPonto();
+        }
+
+        int escolha = lerInteiro("Numero do ponto (0 cancela): ");
+
+        if (escolha < 1 || escolha > pontos.size()) {
+            System.out.println("Selecao cancela");
+
+            return null;
+        }
+
+        return pontos.get(escolha - 1);
     }
 }
