@@ -182,8 +182,18 @@ public class Ponto {
             throw new IllegalArgumentException("Rua, bairro e zona sao obrigatorios.");
         }
 
-        return consultar("WHERE p.id_zona = ? AND (LOWER(p.rua) = LOWER(?) OR LOWER(p.bairro) = LOWER(?))",
-                new Object[]{zona.getIdZona(), rua.trim(), bairro.trim()});
+        String ruaBusca = rua.trim();
+        String bairroBusca = bairro.trim();
+
+        String ordem = "CASE WHEN LOWER(p.rua) = LOWER(?) AND LOWER(p.bairro) = LOWER(?) THEN 1 "
+                + "WHEN LOWER(p.bairro) = LOWER(?) THEN 2 "
+                + "WHEN LOWER(p.rua) = LOWER(?) THEN 3 "
+                + "ELSE 4 END, p.nome_ponto, p.id_ponto";
+
+        return consultar("WHERE p.id_zona = ? OR LOWER(p.rua) = LOWER(?) OR LOWER(p.bairro) = LOWER(?)",
+                new Object[]{zona.getIdZona(), ruaBusca, bairroBusca},
+                ordem,
+                new Object[]{ruaBusca, bairroBusca, bairroBusca, ruaBusca});
     }
 
     public static List<Ponto> buscarPorRua(String rua) {
@@ -284,7 +294,6 @@ public class Ponto {
         throw new IllegalArgumentException("Mototaxista nao encontrado.");
     }
 
-    // Um mototaxista pertence a um unico ponto (mesma regra de MotoTaxi.editarMotoTaxi).
     private static void associarMotoTaxi(Connection conexao, int idPonto, int idMotoTaxi) throws SQLException {
         try (PreparedStatement comando = conexao.prepareStatement("DELETE FROM ponto_mototaxistas WHERE id_mototaxista = ?")) {
             comando.setInt(1, idMotoTaxi);
@@ -300,9 +309,13 @@ public class Ponto {
     }
 
     private static List<Ponto> consultar(String filtro, Object[] parametros) {
+        return consultar(filtro, parametros, "p.nome_ponto, p.id_ponto", null);
+    }
+
+    private static List<Ponto> consultar(String filtro, Object[] parametros, String ordem, Object[] parametrosOrdem) {
         String sql = "SELECT p.id_ponto, p.nome_ponto, p.rua, p.bairro, p.id_zona, u.login AS login_administrador "
                 + "FROM pontos p JOIN usuarios u ON u.id_usuario = p.id_administrador "
-                + filtro + " ORDER BY p.nome_ponto, p.id_ponto";
+                + filtro + " ORDER BY " + ordem;
 
         Map<Integer, Zona> zonas = new HashMap<>();
 
@@ -319,9 +332,17 @@ public class Ponto {
         List<Ponto> pontos = new ArrayList<>();
 
         try (Connection conexao = ConexaoBanco.conectar(); PreparedStatement comando = conexao.prepareStatement(sql)) {
+            int indice = 1;
+
             if (parametros != null) {
-                for (int i = 0; i < parametros.length; i++) {
-                    comando.setObject(i + 1, parametros[i]);
+                for (Object parametro : parametros) {
+                    comando.setObject(indice++, parametro);
+                }
+            }
+
+            if (parametrosOrdem != null) {
+                for (Object parametro : parametrosOrdem) {
+                    comando.setObject(indice++, parametro);
                 }
             }
 
